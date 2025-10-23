@@ -98,46 +98,43 @@ LOCAL_EOF
 
   final String addonDir    = env.ADDON_DIR
   final String addonParent = addonDir.contains('/') ? addonDir.substring(0, addonDir.lastIndexOf('/')) : '.'
+  final String gitUrl      = env.GIT_URL
+  final String branch      = env.BRANCH
 
   // 1) Commit previo EXACTO (para rollback)
   def prevCommit = sshRunOut("""
 if [ -d "${addonDir}/.git" ]; then
-  sudo -n -u odoo git -C "${addonDir}" rev-parse HEAD 2>/dev/null || true
+  sudo -u odoo git -C "${addonDir}" rev-parse HEAD 2>/dev/null || true
 fi
 """)
   echo "Prev commit en ${host}: ${prevCommit ?: '(no disponible, primer deploy)'}"
 
   try {
-    // 2) Preparar directorios y ownership
+    // 2) Preparar directorios y ownership (sin -n, como en el pipeline que funciona)
     sshRun("""
-sudo -n install -d -o odoo -g odoo -m 775 "${addonParent}"
-# Si existe, asegurar ownership para que 'odoo' pueda tocarlo
-sudo -n install -d -o odoo -g odoo -m 775 "${addonDir}"
-sudo -n chown -R odoo:odoo "${addonDir}"
-sudo -n -u odoo git config --global --add safe.directory "${addonDir}" || true
+sudo install -d -o odoo -g odoo -m 775 "${addonParent}"
+sudo install -d -o odoo -g odoo -m 775 "${addonDir}"
+sudo chown -R odoo:odoo "${addonDir}"
+sudo -u odoo git config --global --add safe.directory "${addonDir}" || true
 
-# 2.1) Clonar/actualizar como 'odoo' SIN sudo extra (evitamos rsync/mktemp)
-sudo -n -u odoo bash -c '
-  set -euo pipefail
-  if [ -d "${addonDir}/.git" ]; then
-    git -C "${addonDir}" fetch --all --prune
-    git -C "${addonDir}" checkout -q "${BRANCH}" || true
-    git -C "${addonDir}" reset --hard "origin/${BRANCH}"
-  else
-    # si existe pero no es repo, lo reemplazamos
-    rm -rf "${addonDir}"
-    git clone "${GIT_URL}" "${addonDir}"
-    git -C "${addonDir}" checkout -q "${BRANCH}" || true
-    git -C "${addonDir}" reset --hard "origin/${BRANCH}"
-  fi
-  git -C "${addonDir}" rev-parse HEAD
-'
+# 2.1) Clonar/actualizar como 'odoo' (sin sudo -n)
+if [ ! -d "${addonDir}/.git" ]; then
+  # si existe pero no es repo, lo eliminamos como 'odoo' y clonamos
+  sudo chown -R odoo:odoo "${addonDir}" || true
+  sudo -u odoo bash -c 'rm -rf -- "${addonDir}"'
+  sudo -u odoo git clone "${gitUrl}" "${addonDir}"
+fi
+
+sudo -u odoo git -C "${addonDir}" fetch --all --prune
+sudo -u odoo git -C "${addonDir}" checkout -q "${branch}" || true
+sudo -u odoo git -C "${addonDir}" reset --hard "origin/${branch}"
+sudo -u odoo git -C "${addonDir}" rev-parse HEAD
 """)
 
     // 3) Upgrade de módulo (one-shot)
-    sshRun("""sudo -n -u odoo ${env.ODOO_BIN} -c ${env.ODOO_CONF} -d ${env.DB_NAME} -u ${env.MODULE_NAME} --stop-after-init""")
+    sshRun("""sudo -u odoo ${env.ODOO_BIN} -c ${env.ODOO_CONF} -d ${env.DB_NAME} -u ${env.MODULE_NAME} --stop-after-init""")
 
-    // 4) Reinicio servicio
+    // 4) Reinicio servicio (aquí sí con -n)
     sshRun("""
 sudo -n systemctl restart ${env.SERVICE_NAME}
 sudo -n systemctl is-active --quiet ${env.SERVICE_NAME}
@@ -176,9 +173,9 @@ LOCAL_EOF
   } catch (err) {
     echo "❌ ${host}: FALLO detectado. Iniciando ROLLBACK…"
     if (prevCommit) {
-      sshRun("""sudo -n -u odoo git -C "${addonDir}" reset --hard ${prevCommit}""")
+      sshRun("""sudo -u odoo git -C "${addonDir}" reset --hard ${prevCommit}""")
       try {
-        sshRun("""sudo -n -u odoo ${env.ODOO_BIN} -c ${env.ODOO_CONF} -d ${env.DB_NAME} -u ${env.MODULE_NAME} --stop-after-init""")
+        sshRun("""sudo -u odoo ${env.ODOO_BIN} -c ${env.ODOO_CONF} -d ${env.DB_NAME} -u ${env.MODULE_NAME} --stop-after-init""")
         sshRun("""sudo -n systemctl restart ${env.SERVICE_NAME}""")
         sshRun("""sudo -n systemctl is-active --quiet ${env.SERVICE_NAME}""")
         sshRun("""
