@@ -102,34 +102,36 @@ LOCAL_EOF
   // 1) Commit previo EXACTO (para rollback)
   def prevCommit = sshRunOut("""
 if [ -d "${addonDir}/.git" ]; then
-  sudo -u odoo git -C "${addonDir}" rev-parse HEAD 2>/dev/null || true
+  sudo -n -u odoo git -C "${addonDir}" rev-parse HEAD 2>/dev/null || true
 fi
 """)
   echo "Prev commit en ${host}: ${prevCommit ?: '(no disponible, primer deploy)'}"
 
   try {
-    // 2) Deploy idempotente: clonar SIEMPRE a /tmp como usuario odoo y sincronizar
+    // 2) Deploy idempotente: clonar SIEMPRE a un tmp dentro del parent (propiedad de odoo) y sincronizar
     sshRun("""
-sudo install -d -o odoo -g odoo -m 775 "${addonParent}"
+# Asegurar parent y destino con propietario odoo
+sudo -n install -d -o odoo -g odoo -m 775 "${addonParent}"
+sudo -n install -d -o odoo -g odoo -m 775 "${addonDir}"
 
-# tmp para odoo (evita Permission denied)
-TMPDIR=\$(sudo -u odoo mktemp -d /tmp/${env.MODULE_NAME}.XXXXXX)
-cleanup() { sudo rm -rf "\$TMPDIR"; }
-trap cleanup EXIT
+# Crear tmp local seguro bajo el parent (sin usar sudo -u ... mktemp)
+TMPDIR="${addonParent}/.${env.MODULE_NAME}.tmp_\$\$"
+sudo -n install -d -o odoo -g odoo -m 775 "\$TMPDIR"
 
 # Clonamos a tmp y fijamos al branch remoto
-sudo -u odoo git clone --depth=1 "${env.GIT_URL}" "\$TMPDIR/repo"
-sudo -u odoo git -C "\$TMPDIR/repo" fetch --all --prune
-sudo -u odoo git -C "\$TMPDIR/repo" checkout -q "${env.BRANCH}"
-sudo -u odoo git -C "\$TMPDIR/repo" reset --hard "origin/${env.BRANCH}"
+sudo -n -u odoo git clone --depth=1 "${env.GIT_URL}" "\$TMPDIR/repo"
+sudo -n -u odoo git -C "\$TMPDIR/repo" fetch --all --prune
+sudo -n -u odoo git -C "\$TMPDIR/repo" checkout -q "${env.BRANCH}"
+sudo -n -u odoo git -C "\$TMPDIR/repo" reset --hard "origin/${env.BRANCH}"
 
-# Creamos/saneamos destino y sincronizamos contenido
-sudo install -d -o odoo -g odoo -m 775 "${addonDir}"
-# --delete asegura que destino queda igual que el repo; --chown fija propietario
-sudo rsync -a --delete --chown=odoo:odoo "\$TMPDIR/repo/" "${addonDir}/"
+# Sincronizamos contenido al destino (quitar lo que sobra y dejar ownership correcto)
+sudo -n rsync -a --delete --chown=odoo:odoo "\$TMPDIR/repo/" "${addonDir}/"
 
-# Mostrar commit desplegado (desde tmp repo)
-sudo -u odoo git -C "\$TMPDIR/repo" rev-parse HEAD
+# Mostrar commit desplegado (desde tmp)
+sudo -n -u odoo git -C "\$TMPDIR/repo" rev-parse HEAD
+
+# Limpiar tmp
+sudo -n rm -rf "\$TMPDIR"
 """)
 
     // 3) Upgrade de módulo (one-shot)
@@ -174,7 +176,7 @@ LOCAL_EOF
   } catch (err) {
     echo "❌ ${host}: FALLO detectado. Iniciando ROLLBACK…"
     if (prevCommit) {
-      sshRun("""sudo -u odoo git -C "${addonDir}" reset --hard ${prevCommit}""")
+      sshRun("""sudo -n -u odoo git -C "${addonDir}" reset --hard ${prevCommit}""")
       try {
         sshRun("""sudo -n -u odoo ${env.ODOO_BIN} -c ${env.ODOO_CONF} -d ${env.DB_NAME} -u ${env.MODULE_NAME} --stop-after-init""")
         sshRun("""sudo -n systemctl restart ${env.SERVICE_NAME}""")
