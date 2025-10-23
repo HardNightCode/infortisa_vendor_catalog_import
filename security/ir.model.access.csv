@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_vendor_catalog_config_user,access.vendor.catalog.config.user,model_vendor_catalog_config,base.group_user,1,0,0,0
+access_vendor_catalog_config_manager,access.vendor.catalog.config.manager,model_vendor_catalog_config,base.group_system,1,1,1,1
+access_vendor_catalog_log_user,access.vendor.catalog.log.user,model_vendor_catalog_log,base.group_user,1,0,0,0
+access_vendor_catalog_log_manager,access.vendor.catalog.log.manager,model_vendor_catalog_log,base.group_system,1,1,1,1

@@ -1,0 +1,6 @@
+<odoo>
+  <!-- Desactivada: no insertamos website_description en la página -->
+  <template id="product_show_website_description"
+            inherit_id="website_sale.product"
+            name="(disabled) website_description injection"/>
+</odoo>

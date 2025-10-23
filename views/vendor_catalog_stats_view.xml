@@ -1,0 +1,13 @@
+<odoo>
+  <!-- Insertar debajo de last_result en el formulario de vendor.catalog.config -->
+  <record id="view_vendor_catalog_config_form_stats" model="ir.ui.view">
+    <field name="name">vendor.catalog.config.form.stats</field>
+    <field name="model">vendor.catalog.config</field>
+    <field name="inherit_id" ref="vendor_catalog_import.view_vendor_catalog_config_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='last_result']" position="after">
+        <field name="last_no_extra_images" readonly="1" string="Sin imagen extra"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>

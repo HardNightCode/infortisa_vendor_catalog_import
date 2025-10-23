@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Configuraciones: árbol -->
+  <record id="view_vendor_catalog_config_tree" model="ir.ui.view">
+    <field name="name">vendor.catalog.config.tree</field>
+    <field name="model">vendor.catalog.config</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="name"/>
+        <field name="vendor_id"/>
+        <field name="feed_format"/>
+        <field name="feed_url"/>
+        <field name="active"/>
+        <field name="last_run"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Configuraciones: formulario -->
+  <record id="view_vendor_catalog_config_form" model="ir.ui.view">
+    <field name="name">vendor.catalog.config.form</field>
+    <field name="model">vendor.catalog.config</field>
+    <field name="arch" type="xml">
+      <form string="Configuración catálogo">
+        <header>
+          <button name="action_run_import" type="object" class="oe_highlight" string="Ejecutar importación ahora"/>
+        </header>
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="active"/>
+              <field name="vendor_id"/>
+              <field name="map_by"/>
+              <field name="default_categ_id"/>
+              <field name="batch_commit"/>
+            </group>
+            <group string="Fuente de datos">
+              <field name="feed_format"/>
+              <field name="feed_url"/>
+              <field name="auth_token"/>
+              <field name="python_module"/>
+              <field name="python_callable"/>
+              <field name="python_kwargs"/>
+            </group>
+          </group>
+          <group string="eCommerce">
+            <field name="publish_on_website"/>
+            <field name="website_id"/>
+          </group>
+          <group string="Última ejecución">
+            <field name="last_run" readonly="1"/>
+            <field name="last_result" readonly="1" nolabel="1"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+
+  <!-- Logs: árbol -->
+  <record id="view_vendor_catalog_log_tree" model="ir.ui.view">
+    <field name="name">vendor.catalog.log.tree</field>
+    <field name="model">vendor.catalog.log</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="run_date"/>
+        <field name="config_id"/>
+        <field name="total"/>
+        <field name="created"/>
+        <field name="updated"/>
+        <field name="skipped" string="Fallidos"/>
+        <field name="no_extra_images" string="Sin imagen extra"/>
+        <field name="notes"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Acciones -->
+  <record id="action_vendor_catalog_config" model="ir.actions.act_window">
+    <field name="name">Configuraciones</field>
+    <field name="res_model">vendor.catalog.config</field>
+    <field name="view_mode">list,form</field>
+  </record>
+
+  <record id="action_vendor_catalog_logs" model="ir.actions.act_window">
+    <field name="name">Ejecuciones</field>
+    <field name="res_model">vendor.catalog.log</field>
+    <field name="view_mode">list</field>
+  </record>
+
+  <!-- Menús -->
+  <menuitem id="menu_vendor_catalog_root" name="Catálogo distribuidor" sequence="5"/>
+  <menuitem id="menu_vendor_catalog_config" action="action_vendor_catalog_config" name="Configuraciones" parent="menu_vendor_catalog_root"/>
+  <menuitem id="menu_vendor_catalog_logs" action="action_vendor_catalog_logs" name="Ejecuciones" parent="menu_vendor_catalog_root"/>
+
+  <!-- Ajustes globales (vista propia, sin heredar la base) -->
+  <record id="view_vendor_catalog_settings_simple" model="ir.ui.view">
+    <field name="name">vendor.catalog.settings.simple</field>
+    <field name="model">res.config.settings</field>
+    <field name="arch" type="xml">
+      <form string="Ajustes globales — Catálogo distribuidor">
+        <sheet>
+          <group string="Programación global">
+            <field name="cron_hours"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Acción/menú para abrir nuestros ajustes -->
+  <record id="action_vendor_catalog_settings" model="ir.actions.act_window">
+    <field name="name">Ajustes globales</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_vendor_catalog_settings_simple"/>
+    <field name="target">current</field>
+  </record>
+
+
+  <menuitem id="menu_vendor_catalog_settings"
+            name="Ajustes globales"
+            parent="menu_vendor_catalog_root"
+            action="action_vendor_catalog_settings"
+            sequence="99"/>
+
+</odoo>

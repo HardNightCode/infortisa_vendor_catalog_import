@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.build/
+.dist/
+.eggs/
+.pytest_cache/
+.idea/
+.vscode/
+.DS_Store
+.env
+.venv/
+venv/
+*.log
+*.swp
+*.swo
+.coverage
+.mypy_cache/
+*.mo
+*.pot
+# Odoo
+*.zip
+*.tar.gz
+*.bak
+local/

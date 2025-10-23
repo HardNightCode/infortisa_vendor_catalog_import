@@ -1,0 +1,18 @@
+<odoo>
+  <record id="view_vendor_catalog_run_tree_no_extra" model="ir.ui.view">
+    <field name="name">vendor.catalog.run.tree.no_extra</field>
+    <field name="model">vendor.catalog.run</field>
+    <!-- heredamos la primera vista tree del modelo por su estructura -->
+    <field name="inherit_id" ref="vendor_catalog_import.view_vendor_catalog_run_tree"/>
+    <field name="arch" type="xml">
+      <!-- Renombrar Skipped a Fallidos -->
+      <xpath expr="//field[@name='skipped']" position="attributes">
+        <attribute name="string">Fallidos</attribute>
+      </xpath>
+      <!-- Añadir columna Sin imagen extra detrás de 'skipped' -->
+      <xpath expr="//field[@name='skipped']" position="after">
+        <field name="no_extra_images" string="Sin imagen extra"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>

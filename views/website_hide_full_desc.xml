@@ -1,0 +1,9 @@
+<odoo>
+  <template id="hide_product_full_description"
+            inherit_id="website_sale.product"
+            name="Ocultar descripción inferior (#product_full_description)">
+    <xpath expr="//div[@id='product_full_description']" position="attributes">
+      <attribute name="class" add="d-none" separator=" "/>
+    </xpath>
+  </template>
+</odoo>

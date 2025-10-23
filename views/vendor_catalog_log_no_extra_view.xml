@@ -1,0 +1,16 @@
+<odoo>
+  <record id="view_vendor_catalog_log_tree_no_extra" model="ir.ui.view">
+    <field name="name">vendor.catalog.log.tree.no_extra</field>
+    <field name="model">vendor.catalog.log</field>
+    <!-- El inherit_id se corrige a continuación si el xml_id base es distinto -->
+    <field name="inherit_id" ref="vendor_catalog_import.view_vendor_catalog_log_tree"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='skipped']" position="attributes">
+        <attribute name="string">Fallidos</attribute>
+      </xpath>
+      <xpath expr="//field[@name='skipped']" position="after">
+        <field name="no_extra_images" string="Sin imagen extra"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>
