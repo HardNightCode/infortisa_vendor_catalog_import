@@ -10,7 +10,7 @@ pipeline {
     DB_NAME       = 'odoo_nexus'
     ERR_PATTERNS  = "ERROR|CRITICAL|Traceback|odoo.exceptions|psycopg2|OperationalError|xmlrpc.client.Fault|IntegrityError"
 
-    // Repo/branch parametrizados
+    // Repo/branch
     GIT_URL       = 'git@github.com:HardNightCode/infortisa_vendor_catalog_import.git'
     BRANCH        = 'main'
 
@@ -69,7 +69,7 @@ pipeline {
 
 def deployAndVerify(String user, String host) {
 
-  // Helpers: fuerzan bash via heredoc (sin shebangs con opciones)
+  // Helpers: fuerzan bash via heredoc
   def sshRun = { String cmd ->
     sh(
       label: "remote ${host}",
@@ -108,30 +108,30 @@ fi
   echo "Prev commit en ${host}: ${prevCommit ?: '(no disponible, primer deploy)'}"
 
   try {
-    // 2) Deploy idempotente: clonar SIEMPRE a un tmp dentro del parent (propiedad de odoo) y sincronizar
+    // 2) Preparar directorios y ownership
     sshRun("""
-# Asegurar parent y destino con propietario odoo
 sudo -n install -d -o odoo -g odoo -m 775 "${addonParent}"
+# Si existe, asegurar ownership para que 'odoo' pueda tocarlo
 sudo -n install -d -o odoo -g odoo -m 775 "${addonDir}"
+sudo -n chown -R odoo:odoo "${addonDir}"
+sudo -n -u odoo git config --global --add safe.directory "${addonDir}" || true
 
-# Crear tmp local seguro bajo el parent (sin usar sudo -u ... mktemp)
-TMPDIR="${addonParent}/.${env.MODULE_NAME}.tmp_\$\$"
-sudo -n install -d -o odoo -g odoo -m 775 "\$TMPDIR"
-
-# Clonamos a tmp y fijamos al branch remoto
-sudo -n -u odoo git clone --depth=1 "${env.GIT_URL}" "\$TMPDIR/repo"
-sudo -n -u odoo git -C "\$TMPDIR/repo" fetch --all --prune
-sudo -n -u odoo git -C "\$TMPDIR/repo" checkout -q "${env.BRANCH}"
-sudo -n -u odoo git -C "\$TMPDIR/repo" reset --hard "origin/${env.BRANCH}"
-
-# Sincronizamos contenido al destino (quitar lo que sobra y dejar ownership correcto)
-sudo -n rsync -a --delete --chown=odoo:odoo "\$TMPDIR/repo/" "${addonDir}/"
-
-# Mostrar commit desplegado (desde tmp)
-sudo -n -u odoo git -C "\$TMPDIR/repo" rev-parse HEAD
-
-# Limpiar tmp
-sudo -n rm -rf "\$TMPDIR"
+# 2.1) Clonar/actualizar como 'odoo' SIN sudo extra (evitamos rsync/mktemp)
+sudo -n -u odoo bash -c '
+  set -euo pipefail
+  if [ -d "${addonDir}/.git" ]; then
+    git -C "${addonDir}" fetch --all --prune
+    git -C "${addonDir}" checkout -q "${BRANCH}" || true
+    git -C "${addonDir}" reset --hard "origin/${BRANCH}"
+  else
+    # si existe pero no es repo, lo reemplazamos
+    rm -rf "${addonDir}"
+    git clone "${GIT_URL}" "${addonDir}"
+    git -C "${addonDir}" checkout -q "${BRANCH}" || true
+    git -C "${addonDir}" reset --hard "origin/${BRANCH}"
+  fi
+  git -C "${addonDir}" rev-parse HEAD
+'
 """)
 
     // 3) Upgrade de módulo (one-shot)
