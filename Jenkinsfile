@@ -10,6 +10,10 @@ pipeline {
     DB_NAME       = 'odoo_nexus'
     ERR_PATTERNS  = "ERROR|CRITICAL|Traceback|odoo.exceptions|psycopg2|OperationalError|xmlrpc.client.Fault|IntegrityError"
 
+    // === NUEVO: repo/branch parametrizados ===
+    GIT_URL       = 'git@github.com:HardNightCode/infortisa_vendor_catalog_import.git'
+    BRANCH        = 'main'
+
     STAGE_HOST    = '10.0.100.160'
     STAGE_USER    = 'deploy'
     STAGE_CREDS   = 'ssh-stage'
@@ -33,7 +37,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        echo "SCM: ${env.GIT_URL ?: 'git@github.com:HardNightCode/infortisa_vendor_catalog_import.git'}"
+        echo "SCM: ${env.GIT_URL} (branch: ${env.BRANCH})"
       }
     }
 
@@ -104,20 +108,29 @@ fi
   echo "Prev commit en ${host}: ${prevCommit ?: '(no disponible, primer deploy)'}"
 
   try {
-    // 2) Git update como odoo (y safe.directory)
+    // 2) Deploy idempotente: clonar SIEMPRE a /tmp y sincronizar
     sshRun("""
 sudo install -d -o odoo -g odoo -m 775 "${addonParent}"
+tmpdir=\$(mktemp -d)
+trap 'rm -rf "\$tmpdir"' EXIT
 
-if [ ! -d "${addonDir}/.git" ]; then
-  sudo -u odoo git clone git@github.com:HardNightCode/infortisa_vendor_catalog_import.git "${addonDir}"
-fi
+# Clonamos a tmp y fijamos al branch remoto
+sudo -u odoo git clone --depth=1 "${env.GIT_URL}" "\$tmpdir/repo"
+sudo -u odoo git -C "\$tmpdir/repo" fetch --all --prune
+sudo -u odoo git -C "\$tmpdir/repo" checkout -q "${env.BRANCH}"
+sudo -u odoo git -C "\$tmpdir/repo" reset --hard "origin/${env.BRANCH}"
 
+# Creamos/saneamos destino y sincronizamos contenido
+sudo install -d -o odoo -g odoo -m 775 "${addonDir}"
+# --delete asegura que destino queda igual que el repo
+sudo rsync -a --delete "\$tmpdir/repo/" "${addonDir}/"
+
+# Propietarios/seguridad
 sudo chown -R odoo:odoo "${addonDir}"
 sudo -u odoo git config --global --add safe.directory "${addonDir}" || true
 
-sudo -u odoo git -C "${addonDir}" fetch --all --prune
-sudo -u odoo git -C "${addonDir}" reset --hard origin/main
-sudo -u odoo git -C "${addonDir}" rev-parse HEAD
+# Mostrar commit desplegado (desde tmp repo)
+sudo -u odoo git -C "\$tmpdir/repo" rev-parse HEAD
 """)
 
     // 3) Upgrade de módulo (one-shot)
