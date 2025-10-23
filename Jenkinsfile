@@ -1,6 +1,6 @@
 pipeline {       
   agent any  
-      
+    
   environment {
     MODULE_NAME   = 'vendor_catalog_import'
     ODOO_BIN      = '/usr/bin/odoo'
