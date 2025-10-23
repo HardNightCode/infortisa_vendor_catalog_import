@@ -33,7 +33,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        echo "SCM: ${env.GIT_URL ?: 'git@github.com:HardNightCode/infortisa_orders.git'}"
+        echo "SCM: ${env.GIT_URL ?: 'git@github.com:HardNightCode/infortisa_vendor_catalog_import.git'}"
       }
     }
 
@@ -109,7 +109,7 @@ fi
 sudo install -d -o odoo -g odoo -m 775 "${addonParent}"
 
 if [ ! -d "${addonDir}/.git" ]; then
-  sudo -u odoo git clone git@github.com:HardNightCode/${env.MODULE_NAME}.git "${addonDir}"
+  sudo -u odoo git clone git@github.com:HardNightCode/infortisa_vendor_catalog_import.git "${addonDir}"
 fi
 
 sudo chown -R odoo:odoo "${addonDir}"
